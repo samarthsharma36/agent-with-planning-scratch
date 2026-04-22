@@ -17,13 +17,16 @@ Every AI agent framework is just a wrapper around this pattern.
 """
 
 import anthropic
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # One client, shared across all agents (parent + all sub-agents)
 client = anthropic.Anthropic()
 
 # Model used by all agents
 # Change this to switch every agent at once
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-4-5-20250929"
 
 # Safety limit — prevents infinite loops if something goes wrong
 MAX_TURNS = 20
@@ -64,6 +67,7 @@ def run_agent(
         # Pass the full conversation history every time.
         # The LLM has no memory — we replay the entire context on each call.
         # This is true whether you use LangGraph or raw SDK.
+        print(f"  [turn {turn + 1}] calling LLM...", flush=True)
         response = client.messages.create(
             model=MODEL,
             max_tokens=4096,
@@ -101,6 +105,7 @@ def run_agent(
                 tool_input   = block.input   # dict of LLM-provided args
                 tool_call_id = block.id      # unique ID for this call
                                              # e.g. "toolu_01XYZ..."
+                print(f"  [tool] {tool_name}", flush=True)
 
                 # ── STEP 4: Execute the tool ─────────────────────────────────
                 # This is what InjectedState and InjectedToolCallId did.
