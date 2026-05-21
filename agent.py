@@ -17,20 +17,16 @@ Reading order:
 from llama_index.core.agent.workflow import FunctionAgent
 from llama_index.core.tools import FunctionTool
 
-from tools import web_search_tool, think_tool_tool
-from prompts import RESEARCHER_PROMPT
+from tools import (
+    web_search_tool, think_tool_tool,
+    draft_section_tool, format_output_tool, check_grammar_tool,
+    identify_patterns_tool, generate_insights_tool, score_relevance_tool,
+)
+from prompts import RESEARCHER_PROMPT, WRITER_PROMPT, ANALYST_PROMPT
 
 
 def create_researcher(llm) -> FunctionAgent:
-    """Build the research specialist agent.
-
-    The researcher gets only the tools it needs:
-      - web_search: to fetch information
-      - think_tool: to reason about what it found before responding
-
-    LlamaIndex equivalent of the old sub_agent_config dict +
-    the inner run_agent() call in task_fn.
-    """
+    """Build the research specialist agent."""
     return FunctionAgent(
         name="research-agent",
         description="Searches the web for a specific topic. Give one topic at a time.",
@@ -40,29 +36,53 @@ def create_researcher(llm) -> FunctionAgent:
     )
 
 
-def create_task_tool(researcher: FunctionAgent) -> FunctionTool:
-    """Wrap the researcher's run() as a tool the parent agent can call.
+def create_writer(llm) -> FunctionAgent:
+    """Build the writer specialist agent."""
+    return FunctionAgent(
+        name="writer-agent",
+        description="Drafts, formats, and checks written text.",
+        tools=[draft_section_tool, format_output_tool, check_grammar_tool],
+        llm=llm,
+        system_prompt=WRITER_PROMPT,
+    )
 
-    LlamaIndex equivalent of create_task_tool() in the old agent.py.
 
-    The parent calls task(description=...) and gets back a string result.
-    Each call creates a fresh Context for the researcher automatically —
-    no manual state isolation needed.
+def create_analyst(llm) -> FunctionAgent:
+    """Build the analyst specialist agent."""
+    return FunctionAgent(
+        name="analyst-agent",
+        description="Identifies patterns, generates insights, and scores relevance.",
+        tools=[identify_patterns_tool, generate_insights_tool, score_relevance_tool],
+        llm=llm,
+        system_prompt=ANALYST_PROMPT,
+    )
+
+
+def create_task_tool(agents: dict) -> FunctionTool:
+    """Wrap multiple specialist agents as a single routing tool.
+
+    The parent calls task(agent=..., description=...) to delegate to any
+    registered specialist. Each call creates a fresh Context automatically.
     """
 
-    async def task(description: str) -> str:
-        """Delegate a focused research task to the specialist research agent.
+    async def task(agent: str, description: str) -> str:
+        """Delegate a task to a named specialist agent.
 
-        Available specialist:
+        Available specialists:
           - research-agent: Searches the web for a specific topic.
+          - writer-agent:   Drafts, formats, and checks written text.
+          - analyst-agent:  Identifies patterns, generates insights, scores relevance.
 
         HOW to use:
+        - agent: exact specialist name from the list above.
         - description: Write the FULL context the agent needs.
           It has NO memory of this conversation — include ALL context.
-        - One focused topic per call (not 'do everything').
-        - Call task() multiple times in one step for parallel topics.
+        - One focused job per call (not 'do everything').
+        - Call task() multiple times in one step for parallel jobs.
         """
-        result = await researcher.run(user_msg=description)
+        if agent not in agents:
+            return f"Error: unknown agent '{agent}'. Choose from: {list(agents.keys())}"
+        result = await agents[agent].run(user_msg=description)
         return str(result)
 
     return FunctionTool.from_defaults(task)
