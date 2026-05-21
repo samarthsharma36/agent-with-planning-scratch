@@ -1,103 +1,12 @@
 """
-prompts.py — All tool descriptions and system prompts
+prompts.py — System prompts for each agent
 
-Nothing framework-specific here. These are the same prompts as the
-LangGraph version — prompts don't belong to any framework.
+Tool descriptions are now docstrings on the tool functions in tools.py.
+LlamaIndex reads those docstrings to generate the tool schemas automatically.
 
-Two types of prompts:
-  1. Tool descriptions  → go into the JSON schema sent to the API
-                          LLM reads these to decide WHEN and HOW to call the tool
-  2. System prompts     → go into messages.create(system=...)
-                          LLM reads these to understand its role and workflow
+This file only contains system prompts — the instructions that define each
+agent's role and workflow.
 """
-
-# ─────────────────────────────────────────────────────────────
-# TOOL DESCRIPTIONS
-# These are injected into the tool's JSON schema.
-# The LLM reads them as part of the tool spec.
-# ─────────────────────────────────────────────────────────────
-
-WRITE_TODOS_DESCRIPTION = """Manage your TODO list for multi-step tasks.
-
-WHEN to use:
-- At the very start: write your full plan before doing ANY work
-- After completing each step: update statuses and add newly discovered tasks
-- When your plan changes: rewrite the whole list
-
-FORMAT:
-- content: short specific action ("Search Python docs", not "Do research")
-- status: start as 'pending', change to 'in_progress', then 'completed'
-
-CRITICAL: Always rewrite the FULL list. Never do partial updates.
-The list recites your goals at the end of context — it keeps you on track."""
-
-READ_TODOS_DESCRIPTION = """Read the current TODO list.
-
-Use this to re-orient yourself when you feel lost in a long task,
-or when you want to check what's still pending before deciding next steps."""
-
-LS_DESCRIPTION = """List all files in the virtual filesystem.
-
-Call this FIRST before starting any task to see what context already exists.
-Files persist across the entire conversation — previous work may be saved here."""
-
-READ_FILE_DESCRIPTION = """Read file content from the virtual filesystem.
-
-WHEN to use:
-- When you need full details of a previously saved result
-- When writing a report (read research files first)
-- Use offset + limit for large files to read in chunks
-
-TIP: Don't read files you don't need yet. Keep your context lean.
-Use ls() to see what's available, read only what you're actively using.
-
-Args:
-  file_path: exact filename from ls()
-  offset: line number to start from (default 0)
-  limit: max lines to read (default 2000)"""
-
-WRITE_FILE_DESCRIPTION = """Write content to the virtual filesystem.
-
-WHEN to use:
-- After any search: save the full results immediately
-- When preserving intermediate work
-- Name files descriptively: 'python_overview.md', not 'file1.txt'
-
-Content stays in state — you AND any sub-agent can read it later.
-Always save to files instead of keeping raw content in your context."""
-
-THINK_DESCRIPTION = """Reflect on your progress before deciding the next step.
-
-Use after each search or major action:
-- What did I find? Is it sufficient?
-- What is still missing?
-- Should I search again or write my final answer now?
-
-Forces you to reason deliberately instead of jumping to conclusions."""
-
-WEB_SEARCH_DESCRIPTION = """Search the web for information on a topic.
-
-Be specific with your query — 'Python list comprehension syntax' 
-is better than 'Python stuff'.
-
-Returns a summary. Full content is saved to files automatically.
-Use read_file() for full details."""
-
-TASK_DESCRIPTION_TEMPLATE = """Delegate a focused task to a specialist sub-agent.
-
-Available specialists:
-{agents_list}
-
-HOW to use:
-- description: Write the FULL context the agent needs.
-  It has NO memory of this conversation. It only sees what you write here.
-- subagent_type: exact agent name from the list above
-
-RULES:
-- One focused topic per call (not "do everything")
-- The agent will save detailed results to files and return a summary
-- You can call task() multiple times in one step for parallel work"""
-
 
 # ─────────────────────────────────────────────────────────────
 # SYSTEM PROMPTS
@@ -140,7 +49,7 @@ You have a task() tool to delegate work to specialists.
 
 Workflow:
 1. Plan with write_todos
-2. For each research topic → delegate to research-agent  
+2. For each research topic → delegate to research-agent
 3. Collect summaries from results
 4. Read relevant files when writing your final answer
 5. Synthesize everything into a comprehensive response
@@ -153,7 +62,7 @@ Context isolation:
 Each sub-agent starts completely fresh.
 Write complete, self-contained descriptions — assume they know NOTHING."""
 
-# Full parent system prompt — all three sections stacked
+
 def build_parent_prompt(max_parallel: int = 3) -> str:
     return (
         "# Task management\n"
@@ -167,7 +76,6 @@ def build_parent_prompt(max_parallel: int = 3) -> str:
     )
 
 
-# Researcher sub-agent system prompt
 RESEARCHER_PROMPT = """You are a specialist researcher. You receive ONE research topic.
 
 Your workflow:
