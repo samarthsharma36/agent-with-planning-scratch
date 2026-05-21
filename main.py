@@ -21,7 +21,7 @@ from tools import (
     think_tool_tool,
     web_search_tool,
 )
-from agent import create_researcher, create_task_tool
+from agent import create_researcher, create_writer, create_analyst, create_task_tool
 from prompts import build_parent_prompt
 
 load_dotenv()
@@ -33,25 +33,28 @@ async def main():
     # Setting Settings.tokenizer ensures accurate token counting throughout.
     llm = Anthropic(model="claude-sonnet-4-5-20250929")
 
-    # ── 2. CREATE THE RESEARCH SUB-AGENT ─────────────────────────────────────
-    # The researcher is a FunctionAgent with web_search + think_tool.
-    # create_task_tool() wraps researcher.run() as a FunctionTool so the
-    # parent agent can delegate to it by calling task(description=...).
+    # ── 2. CREATE SUB-AGENTS ─────────────────────────────────────────────────
     researcher = create_researcher(llm)
-    task_tool  = create_task_tool(researcher)
+    writer     = create_writer(llm)
+    analyst    = create_analyst(llm)
+
+    task_tool = create_task_tool({
+        "research-agent": researcher,
+        "writer-agent":   writer,
+        "analyst-agent":  analyst,
+    })
 
     # ── 3. CREATE THE PARENT AGENT ───────────────────────────────────────────
-    # Parent gets all base tools + the task delegation tool.
     parent = FunctionAgent(
         tools=[
-            write_todos_tool,   # plan with todos
+            write_todos_tool,
             read_todos_tool,
-            ls_tool,            # virtual filesystem
+            ls_tool,
             write_file_tool,
             read_file_tool,
-            think_tool_tool,    # structured reflection
-            web_search_tool,    # can search directly for trivial lookups
-            task_tool,          # delegate to research-agent
+            think_tool_tool,
+            web_search_tool,
+            task_tool,
         ],
         llm=llm,
         system_prompt=build_parent_prompt(max_parallel=3),
@@ -64,8 +67,9 @@ async def main():
 
     handler = parent.run(
         user_msg=(
-            "Research what Python is and its main use cases. "
-            "Give me a well-structured summary."
+            "Research Python's main use cases. "
+            "Then have the writer format a clean summary report. "
+            "Then have the analyst score the relevance of each use case."
         )
     )
 
