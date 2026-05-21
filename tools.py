@@ -204,6 +204,67 @@ async def web_search(ctx: Context, query: str, max_results: int = 5) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════
+# WRITER TOOLS (mock — stateless, no ctx needed)
+# ═══════════════════════════════════════════════════════════════
+
+def draft_section(topic: str) -> str:
+    """Draft a written section on a given topic.
+
+    Use when you need to produce structured prose for a report or document.
+    Returns a complete section with intro, key points, and conclusion.
+    """
+    return f"[MOCK] Drafted section on '{topic}': Introduction... Key points... Conclusion."
+
+
+def format_output(content: str) -> str:
+    """Format raw content into clean markdown.
+
+    Use after drafting to apply consistent structure, headings, and layout.
+    """
+    return f"[MOCK] Formatted output:\n## Result\n{content}\n---"
+
+
+def check_grammar(text: str) -> str:
+    """Check grammar and suggest improvements for a piece of text.
+
+    Use before finalizing any written output to catch issues and
+    assess readability.
+    """
+    return f"[MOCK] Grammar check for: '{text[:40]}...' — No issues found. Readability: High."
+
+
+# ═══════════════════════════════════════════════════════════════
+# ANALYST TOOLS (mock — stateless, no ctx needed)
+# ═══════════════════════════════════════════════════════════════
+
+def identify_patterns(data: str) -> str:
+    """Identify recurring patterns in a body of text or data.
+
+    Use when you need to find themes, trends, or repeated structures
+    across a dataset or document.
+    """
+    return f"[MOCK] Patterns in '{data[:30]}...': Pattern A (frequent), Pattern B (occasional)."
+
+
+def generate_insights(topic: str) -> str:
+    """Generate key insights about a topic.
+
+    Use to extract the core trend, notable outlier, and main implication
+    from a topic or dataset.
+    """
+    return f"[MOCK] Insights on '{topic}': 1. Core trend. 2. Notable outlier. 3. Implication."
+
+
+def score_relevance(item: str) -> str:
+    """Score how relevant an item is to the current task.
+
+    Use to prioritize which pieces of information or use cases are
+    most important to include in the final output.
+    """
+    return f"[MOCK] Relevance score for '{item[:30]}': 8/10 — strongly relevant."
+
+
+# ═══════════════════════════════════════════════════════════════
 # TOOL REGISTRY — what agent.py and main.py import
 # ═══════════════════════════════════════════════════════════════
 
@@ -214,3 +275,10 @@ write_file_tool  = FunctionTool.from_defaults(write_file)
 read_file_tool   = FunctionTool.from_defaults(read_file)
 think_tool_tool  = FunctionTool.from_defaults(think_tool)
 web_search_tool  = FunctionTool.from_defaults(web_search)
+
+draft_section_tool     = FunctionTool.from_defaults(draft_section)
+format_output_tool     = FunctionTool.from_defaults(format_output)
+check_grammar_tool     = FunctionTool.from_defaults(check_grammar)
+identify_patterns_tool = FunctionTool.from_defaults(identify_patterns)
+generate_insights_tool = FunctionTool.from_defaults(generate_insights)
+score_relevance_tool   = FunctionTool.from_defaults(score_relevance)
