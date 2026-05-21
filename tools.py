@@ -167,44 +167,7 @@ def think_tool(reflection: str) -> str:
     return f"Reflection recorded: {reflection}"
 
 
-# Mock web search — returns canned results so no external API key is needed.
-# To make this real: replace the function body with a Tavily/Serper call.
-# The docstring (schema) stays the same — the LLM doesn't care what's inside.
-_MOCK_RESULTS = {
-    "default": """
-        Python is a high-level, interpreted programming language created by Guido van Rossum,
-        first released in 1991. It emphasizes code readability and simplicity.
-
-        Key features:
-        - Dynamic typing and automatic memory management
-        - Extensive standard library ("batteries included")
-        - Supports multiple programming paradigms: procedural, OOP, functional
-        - Large ecosystem: NumPy, Pandas, Django, Flask, PyTorch, TensorFlow
-
-        Common use cases:
-        - Web development (Django, Flask, FastAPI)
-        - Data science and machine learning (NumPy, Pandas, scikit-learn)
-        - Automation and scripting
-        - APIs and backend services
-
-        Python 3 is the current version. Python 2 reached end-of-life in 2020.
-        The language is consistently ranked among the top 3 most popular languages worldwide.
-    """,
-    "use cases": """
-        Python real-world use cases and applications:
-
-        1. Data Science: Used by Netflix for recommendation engines, by Spotify for music analysis
-        2. Machine Learning: PyTorch (Meta), TensorFlow (Google) are Python-first frameworks
-        3. Web Development: Instagram runs on Django, Dropbox uses Python extensively
-        4. Automation: DevOps pipelines, test automation, data pipelines
-        5. Scientific Computing: NASA, CERN use Python for data analysis
-        6. Finance: Quant trading algorithms, risk modeling at major banks
-        7. Education: Most universities teach Python as first language
-    """,
-}
-
-
-async def web_search(ctx: Context, query: str) -> str:
+async def web_search(ctx: Context, query: str, max_results: int = 5) -> str:
     """Search the web for information on a topic.
 
     Be specific with your query — 'Python list comprehension syntax'
@@ -213,27 +176,29 @@ async def web_search(ctx: Context, query: str) -> str:
     Returns a summary. Full content is saved to files automatically.
     Use read_file() for full details.
     """
-    query_lower = query.lower()
-    if any(kw in query_lower for kw in ["use case", "application", "real world", "example"]):
-        raw_content = _MOCK_RESULTS["use cases"]
-    else:
-        raw_content = _MOCK_RESULTS["default"]
+    from duckduckgo_search import DDGS
+
+    results = DDGS().text(query, max_results=max_results)
+
+    lines = []
+    for r in results:
+        lines.append(f"### {r['title']}\n{r['href']}\n{r['body']}")
+    raw_content = "\n\n".join(lines) if lines else "No results found."
 
     safe_name = query.lower().replace(" ", "_")[:30]
     filename = f"search_{safe_name}.md"
-
-    file_content = f"# Search result: {query}\n\n## Content\n{raw_content.strip()}\n"
+    file_content = f"# Search result: {query}\n\n{raw_content}\n"
 
     async with ctx.store.edit_state() as s:
         if "files" not in s["state"]:
             s["state"]["files"] = {}
         s["state"]["files"][filename] = file_content
 
-    summary = raw_content.strip().split("\n")[0][:200]
+    summary = lines[0].split("\n")[0] if lines else "No results."
     return (
-        f"Search complete for '{query}'.\n"
-        f"Saved full results to: {filename}\n"
-        f"Summary: {summary}\n"
+        f"Search complete for '{query}'. {len(results)} results.\n"
+        f"Saved to: {filename}\n"
+        f"Top result: {summary}\n"
         f"Use read_file('{filename}') for full details."
     )
 
